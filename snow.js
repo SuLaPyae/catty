@@ -1,119 +1,114 @@
-var canvas = document.querySelector('.snow'),
-    ctx = canvas.getContext('2d'),
-    windowW = window.innerWidth,
-    windowH = window.innerHeight,
-    numFlakes = 200,
-    flakes = [];
+// Happy Xmas! by @neave
 
-function Flake(x, y) {
-    var maxWeight = 5,
-        maxSpeed = 3;
+var Snowflake = (function() {
 
-    this.x = x;
-    this.y = y;
-    this.r = randomBetween(0, 1);
-    this.a = randomBetween(0, Math.PI);
-    this.aStep = 0.01;
-
-
-    this.weight = randomBetween(2, maxWeight);
-    this.alpha = (this.weight / maxWeight);
-    this.speed = (this.weight / maxWeight) * maxSpeed;
-
-    this.update = function() {
-        this.x += Math.cos(this.a) * this.r;
-        this.a += this.aStep;
-
-        this.y += this.speed;
+    var flakes;
+    var flakesTotal = 250;
+    var wind = 0;
+    var mouseX;
+    var mouseY;
+  
+    function Snowflake(size, x, y, vx, vy) {
+      this.size = size;
+      this.x = x;
+      this.y = y;
+      this.vx = vx;
+      this.vy = vy;
+      this.hit = false;
+      this.melt = false;
+      this.div = document.createElement('div');
+      this.div.classList.add('snowflake');
+      this.div.style.width = this.size + 'px';
+      this.div.style.height = this.size + 'px';
     }
-
-}
-
-function init() {
-    var i = numFlakes,
-        flake,
-        x,
-        y;
-
-    while (i--) {
-        x = randomBetween(0, windowW, true);
-        y = randomBetween(0, windowH, true);
-
-
-        flake = new Flake(x, y);
+  
+    Snowflake.prototype.move = function() {
+      if (this.hit) {
+        if (Math.random() > 0.995) this.melt = true;
+      } else {
+        this.x += this.vx + Math.min(Math.max(wind, -10), 10);
+        this.y += this.vy;
+      }
+  
+      // Wrap the snowflake to within the bounds of the page
+      if (this.x > window.innerWidth + this.size) {
+        this.x -= window.innerWidth + this.size;
+      }
+  
+      if (this.x < -this.size) {
+        this.x += window.innerWidth + this.size;
+      }
+  
+      if (this.y > window.innerHeight + this.size) {
+        this.x = Math.random() * window.innerWidth;
+        this.y -= window.innerHeight + this.size * 2;
+        this.melt = false;
+      }
+  
+      var dx = mouseX - this.x;
+      var dy = mouseY - this.y;
+      this.hit = !this.melt && this.y < mouseY && dx * dx + dy * dy < 2400;
+    };
+  
+    Snowflake.prototype.draw = function() {
+      this.div.style.transform =
+      this.div.style.MozTransform =
+      this.div.style.webkitTransform =
+        'translate3d(' + this.x + 'px' + ',' + this.y + 'px,0)';
+    };
+  
+    function update() {
+      for (var i = flakes.length; i--; ) {
+        var flake = flakes[i];
+        flake.move();
+        flake.draw();
+      }
+      requestAnimationFrame(update);
+    }
+  
+    Snowflake.init = function(container) {
+      flakes = [];
+  
+      for (var i = flakesTotal; i--; ) {
+        var size = (Math.random() + 0.2) * 12 + 1;
+        var flake = new Snowflake(
+          size,
+          Math.random() * window.innerWidth,
+          Math.random() * window.innerHeight,
+          Math.random() - 0.5,
+          size * 0.3
+        );
+        container.appendChild(flake.div);
         flakes.push(flake);
-    }
-
-    scaleCanvas();
-    loop();
-}
-
-function scaleCanvas() {
-    canvas.width = windowW;
-    canvas.height = windowH;
-}
-
-function loop() {
-    var i = flakes.length,
-        z,
-        dist,
-        flakeA,
-        flakeB;
-
-    // clear canvas
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, windowW, windowH);
-    ctx.restore();
-
-    // loop of hell
-    while (i--) {
-
-        flakeA = flakes[i];
-        flakeA.update();
-
-
-        /*for (z = 0; z < flakes.length; z++) {
-          flakeB = flakes[z];
-          if (flakeA !== flakeB && distanceBetween(flakeA, flakeB) < 150) {          
-            ctx.beginPath();
-            ctx.moveTo(flakeA.x, flakeA.y);
-            ctx.lineTo(flakeB.x, flakeB.y);
-            ctx.strokeStyle = '#444444';
-            ctx.stroke();
-            ctx.closePath();
-          }
-        }*/
-
-
-        ctx.beginPath();
-        ctx.arc(flakeA.x, flakeA.y, flakeA.weight, 0, 2 * Math.PI, false);
-        ctx.fillStyle = 'rgba(255, 255, 255, ' + flakeA.alpha + ')';
-        ctx.fill();
-
-        if (flakeA.y >= windowH) {
-            flakeA.y = -flakeA.weight;
+      }
+      
+      container.onmousemove = function(event) {
+        mouseX = event.clientX;
+        mouseY = event.clientY;
+        wind = (mouseX - window.innerWidth / 2) / window.innerWidth * 6;
+      };
+  
+      container.ontouchstart = function(event) {
+        mouseX = event.targetTouches[0].clientX;
+        mouseY = event.targetTouches[0].clientY;
+        event.preventDefault();
+      };
+  
+      window.ondeviceorientation = function(event) {
+        if (event) {
+          wind = event.gamma / 10;
         }
-    }
-
-    requestAnimationFrame(loop);
-}
-
-function randomBetween(min, max, round) {
-    var num = Math.random() * (max - min + 1) + min;
-
-    if (round) {
-        return Math.floor(num);
-    } else {
-        return num;
-    }
-}
-
-function distanceBetween(vector1, vector2) {
-    var dx = vector2.x - vector1.x,
-        dy = vector2.y - vector1.y;
-
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-init();
+      };
+      
+      update();
+    };
+  
+    return Snowflake;
+  
+  }());
+  
+  window.onload = function() {
+    setTimeout(function() {
+      Snowflake.init(document.getElementById('snow'));
+    }, 500);
+  }
